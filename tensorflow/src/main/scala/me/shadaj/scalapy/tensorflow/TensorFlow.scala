@@ -1,0 +1,59 @@
+package me.shadaj.scalapy.tensorflow
+
+import me.shadaj.scalapy.numpy.PythonSeq
+import me.shadaj.scalapy.py
+import me.shadaj.scalapy.py.{PyFunction, |}
+import me.shadaj.scalapy.tensorflow.compat.Compat
+import me.shadaj.scalapy.tensorflow.keras.Keras
+import me.shadaj.scalapy.tensorflow.nn.NN
+import me.shadaj.scalapy.tensorflow.random.Random
+import me.shadaj.scalapy.tensorflow.train.Train
+
+@py.native
+trait TensorFlow extends py.Object {
+
+  // modules
+
+  def keras: Keras = py.native
+
+  def nn: NN = py.native
+
+  def random: Random = py.native
+
+  def compat: Compat = py.native
+
+  def train: Train = py.native
+
+  // classes
+
+  def Variable(initialValue: Tensor): Variable = py.native
+
+  def GradientTape(): GradientTape = py.native
+
+  // functions
+
+  def matmul(a: Tensor, b: Tensor): Tensor = py.native
+
+  def identity: PyFunction = py.native
+
+  def identity(t: Tensor): Tensor = py.native
+
+  def zeros(shape: Seq[Int]): Tensor = py.native
+
+  def reshape(tensor: Tensor, shape: Tensor): Tensor = py.native
+
+  def add_n(ts: PythonSeq[Tensor]): Tensor = py.native
+
+  def square(t: Tensor): Tensor = py.native
+
+  def tanh(t: Tensor): Tensor = py.native
+
+  def reduce_mean(t: Tensor): Tensor = py.native
+
+  def gradients(ys: Tensor | PythonSeq[Tensor], xs: Tensor | PythonSeq[Tensor]): Seq[Tensor] = py.native
+
+  def gradients(ys: Tensor, xs: PythonSeq[Tensor], grad_ys: Tensor): Seq[Tensor] = py.native
+
+  def cond(c: Tensor, ifTrue: py.Object, ifFalse: py.Object): Tensor = py.native
+
+}

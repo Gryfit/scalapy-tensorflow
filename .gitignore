@@ -1,4 +1,7 @@
 .idea/
 lib/
-project/project
 target/
+.bloop/
+.devcontainer/
+.metals/
+project/metals.sbt

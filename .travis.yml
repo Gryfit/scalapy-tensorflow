@@ -1,23 +1,81 @@
-sudo: required
-addons:
-  apt:
-    update: true
 language: scala
-branches:
-  only:
-    - master
-    - /^v\d+(\.\d+)+$/
-before_install:
-  - curl https://raw.githubusercontent.com/scala-native/scala-native/v0.3.7/scripts/travis_setup.sh | bash -x
-install:
-  - pyenv install -s 3.6.3
-  - pyenv global 3.6.3
-  - pip install tensorflow
+
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt
+
+jobs:
+  include:
+    - os: osx
+      osx_image: xcode9.4
+      env: INSTALLER=pip
+      before_install: source ci/travis-before-install-osx.sh
+      install:
+        - PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.1
+        - pyenv global 3.7.1
+
+        # For some unclear reason, `pyenv global` isn't enough on Travis OS X VM to make certain pyenv's Python commands visible in the PATH.
+        - PATH="$(pyenv root)/shims:$PATH"
+        - export PATH
+
+        - source ci/travis-install-pip.sh
+
+    - os: osx
+      osx_image: xcode9.4
+      env: INSTALLER=conda
+      before_install: source ci/travis-before-install-osx.sh
+      install:
+        - conda_os=MacOSX
+        # TF 2.2.0 is not available on conda for OS X yet
+        - conda_tf_version=2.0.0
+        - source ci/travis-install-conda.sh
+
+    - os: linux
+      dist: xenial
+      env: INSTALLER=pip
+      before_install: source ci/travis-before-install-xenial.sh
+      install:
+        # Update the list of available Pythons.
+        # On Travis Xenial VM, the pre-bundled repo just happens to end right before 3.7.0 (3.7.0a1 is the latest available version).
+        - cd /opt/pyenv/
+        - git pull origin master
+        - cd -
+
+        # Python 3.7.1 is already installed on Travis Xenial VM, but isn't compiled with --enable-shared.
+        - pyenv uninstall --force 3.7.1
+        - CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.1
+        - pyenv global 3.7.1
+
+        - source ci/travis-install-pip.sh
+
+    - os: linux
+      dist: xenial
+      env: INSTALLER=conda
+      before_install: source ci/travis-before-install-xenial.sh
+      install:
+        - conda_os=Linux
+        - conda_tf_version=2.2.0
+        - source ci/travis-install-conda.sh
+
 script:
-  - export JEP_PATH="/opt/python/3.6.3/lib/python3.6/site-packages/jep"
-  - export LD_LIBRARY_PATH=$(python3-config --prefix)/lib
-  - pip install numpy
-  - sbt test
+  # -batch is necessary to make sure sbt doesn't stall waiting for user input in case of certain failures
+  - echo '-batch' >> .sbtopts
+  - sbt scalafmtCheck
+  - sbt compile
+
+  # Prevent TensorFlow from an attempt to access GPU
+  - export CUDA_VISIBLE_DEVICES=-1
+
+  # We're keeping the number of epochs and training data size deliberately low -
+  # the CI runs of the examples serve rather as smoke tests to spot linking/Python invocation errors.
+  - export EPOCH_COUNT=40
+  - sbt 'project scalaPyTensorFlowExamplesCrossJVM'    'run GradientDescentOptimizerExample'
+  - sbt 'project dottyTensorFlowExamples'              'run GradientDescentOptimizerExample'
+  - export EPOCH_COUNT=1 TRAINING_SET_SIZE=1000
+  - sbt 'project scalaPyTensorFlowExamplesCrossNative' 'run MnistExample'
+  - sbt 'project scalaPyTensorFlowExamplesCrossJVM'    'run MnistExample'
+
 after_success:
-  - 'if [ "$TRAVIS_BRANCH" = "master" ] && [ "$TRAVIS_PULL_REQUEST" = "false" ]; then bash ./publish.sh; fi'
-  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ] && [ -n "$TRAVIS_TAG" ]; then bash ./publish.sh; fi'
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ] && [ "$TRAVIS_BRANCH" = "master" ]; then bash ./publish.sh; fi'
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ] && [ -n "$TRAVIS_TAG" ];            then bash ./publish.sh; fi'
